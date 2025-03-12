@@ -1,0 +1,6 @@
+name: process-github
+language: python
+variables: []
+dockerfile: dockerfile
+runEntryPoint: main.py
+defaultFile: main.py

@@ -1,4 +1,10 @@
-# Processing Github Firehose with PyFlink 
+# Processing Github Firehose with PyFlink
+
+## Aknowledegments
+
+The work in this repository would not have been possible if not for [augustodn](https://github.com/augustodn/pyflink-iot-alerts). His repository (particularly in getting set up with `pyenv` and the `requirements.txt` file) were absolute lifesavers. [Jaehyeon Kim's blog](http://jaehyeon.me/blog/2023-08-17-getting-started-with-pyflink-on-aws-part-1/#source-data) was also invaluable in getting unstuck.
+
+## Set up
 
 This repository should equip you to be able to process the stream from the [Github firehose](https://github-firehose.libraries.io/). The following readme will give instructions that should lead to the top 5 committers in Github of the past 10 seconds to be printed in your terminal.
 
@@ -23,7 +29,6 @@ pip install -r requirements.txt
 ```
 
 Finally, run the `main.py` script to get Kafka up-and-running on your machine.
-
 
 ```bash
 python3 main.py
@@ -66,7 +71,7 @@ Download the Flink Kafka Connect JAR:
 wget https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.1.0-1.18/flink-sql-connector-kafka-3.1.0-1.18.jar
 ```
 
-and move this into the `flink-process` folder: 
+and move this into the `flink-process` folder:
 
 ```bash
 mv ~Downloads/flink-sql-connector-kafka-3.1.0-1.18.jar ./flink-process/

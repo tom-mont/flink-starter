@@ -2,3 +2,4 @@
 .env
 
 flink-connector-kafka-3.1.0-1.18.jar 
+flink-sql-connector-kafka-3.1.0-1.18.jar

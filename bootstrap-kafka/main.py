@@ -1,5 +1,6 @@
 from random import choice
 from confluent_kafka import Producer
+import json
 import logging
 from pprint import pformat
 from requests_sse import EventSource
@@ -23,8 +24,8 @@ def delivery_callback(err, msg):
 def main():
     producer = None
     try:
-        config = {"bootstrap.servers": "localhost:34967", "acks": "all"}
-
+        config = {"bootstrap.servers": "localhost:36399", "acks": "all"}
+        topic = "github_firehose"
         producer = Producer(config)
         with (
             EventSource(
@@ -32,7 +33,12 @@ def main():
             ) as event_source,
         ):
             for event in event_source:
-                logging.info(pformat(event))
+                value = json.loads(event.data)
+                key = value["id"]
+                producer.produce(
+                    topic, key=key, value=json.dumps(value), callback=delivery_callback
+                )
+                logging.info(pformat(json.dumps(value)))
             # producer.poll(10000)
     except:
         raise

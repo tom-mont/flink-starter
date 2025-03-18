@@ -121,7 +121,7 @@ class AllWindowFunction(ProcessAllWindowFunction):
 def main() -> None:
     # Create a StreamExecutionEnvironment
     env = StreamExecutionEnvironment.get_execution_environment()
-    settings = EnvironmentSettings.in_batch_mode()
+    settings = EnvironmentSettings.in_streaming_mode()
     t_env = StreamTableEnvironment.create(env, settings)
     env.set_parallelism(1)
     # Get current directory

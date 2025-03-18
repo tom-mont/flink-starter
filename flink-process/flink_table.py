@@ -9,7 +9,7 @@ from pyflink.common import Duration
 from pyflink.common import Time, WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.datastream.functions import ProcessAllWindowFunction
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSource
@@ -61,6 +61,31 @@ class GithubEventTimestampAssigner(TimestampAssigner):
         return created_at
 
 
+src_ddl = """
+        CREATE TABLE github_firehose_source (
+            id VARCHAR
+            ,type VARCHAR
+        ) WITH (
+            'connector' = 'kafka',
+            'topic' = 'github_firehose',
+            'properties.bootstrap.servers' = 'localhost:35955',
+            'properties.group.id' = '123',
+            'scan.startup.mode' = 'earliest-offset',
+            'properties.auto.offset.reset' = 'earliest',
+            'format' = 'json'
+        )
+    """
+
+sink_ddl = """
+        CREATE TABLE github_firehose_sink (
+            id VARCHAR
+            ,type VARCHAR
+        ) WITH (
+            'connector' = 'print'
+        )
+    """
+
+
 class AllWindowFunction(ProcessAllWindowFunction):
     def process(
         self, context: ProcessAllWindowFunction.Context, elements: Iterable[tuple]
@@ -96,7 +121,8 @@ class AllWindowFunction(ProcessAllWindowFunction):
 def main() -> None:
     # Create a StreamExecutionEnvironment
     env = StreamExecutionEnvironment.get_execution_environment()
-    t_env = StreamTableEnvironment.create(env)
+    settings = EnvironmentSettings.in_streaming_mode()
+    t_env = StreamTableEnvironment.create(env, settings)
     env.set_parallelism(1)
     # Get current directory
     current_dir_list = __file__.split("/")[:-1]
@@ -105,42 +131,43 @@ def main() -> None:
     # Adding the jar to the flink streaming environment
     env.add_jars(f"file://{current_dir}/flink-sql-connector-kafka-3.1.0-1.18.jar")
 
-    properties = {"bootstrap.servers": "localhost:35955", "group.id": "process-github"}
-
+    # properties = {"bootstrap.servers": "localhost:35955", "group.id": "process-github"}
+    t_env.execute_sql(src_ddl)
+    firehose_table = t_env.from_path("github_firehose_source")
+    t_env.execute_sql(sink_ddl)
+    firehose_table.execute_insert("github_firehose_sink").wait()
     # Create a Kafka Source
     # NOTE: FlinkKafkaConsumer class is deprecated
-    kafka_source = (
-        KafkaSource.builder()
-        .set_topics("github_firehose")
-        .set_properties(properties)
-        .set_starting_offsets(
-            KafkaOffsetsInitializer.latest()
-        )  # This step is important. Having the latest KafkaOffsetsInitializer takes the latest event. See [additional options](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/kafka/#starting-offset)
-        .set_value_only_deserializer(SimpleStringSchema())
-        .build()
-    )
+    # kafka_source = (
+    #    KafkaSource.builder()
+    #    .set_topics("github_firehose")
+    #    .set_properties(properties)
+    #    .set_starting_offsets(
+    #        KafkaOffsetsInitializer.latest()
+    #    )  # This step is important. Having the latest KafkaOffsetsInitializer takes the latest event. See [additional options](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/kafka/#starting-offset)
+    #    .set_value_only_deserializer(SimpleStringSchema())
+    #    .build()
+    # )
 
     # Create a DataStream from the Kafka source and assign watermarks
-    data_stream = env.from_source(
-        source=kafka_source,
-        watermark_strategy=WatermarkStrategy.for_bounded_out_of_orderness(
-            Duration.of_seconds(10)
-        ),  # No timestamp assigner as Kafka source automatically assigns timestamps
-        source_name="Github events topic",
-    )
+    # data_stream = env.from_source(
+    #    source=kafka_source,
+    #    watermark_strategy=WatermarkStrategy.for_bounded_out_of_orderness(
+    #        Duration.of_seconds(10)
+    #    ),  # No timestamp assigner as Kafka source automatically assigns timestamps
+    #    source_name="Github events topic",
+    # )
 
     # Intepret the insert-only Datastream as table:
-    t = t_env.from_data_stream(data_stream)
+    # t = t_env.from_data_stream(data_stream)
     # Register table as view:
-    t_env.create_temporary_view("InputTable", t)
+    # t_env.create_temporary_view("InputTable", t)
     # Query Table
-    res_table = t_env.sql_query("select * from InputTable limit 100")
+    # res_table = t_env.sql_query("select * from InputTable limit 2")
 
     # Intepret output table as datastream again
-    res_ds = t_env.to_data_stream(res_table)
-    res_ds.print()
-    # Print line for readablity in the console
-    print("start reading data from kafka")
+    # res_ds = t_env.to_data_stream(res_table)
+    # res_ds.print()
 
     # The display login will be the key for the stream.
     # We eventually want to aggregate, so we will assign tuples with a value of 1.

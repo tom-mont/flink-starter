@@ -1,11 +1,17 @@
-# Flink starter
+# Flink Table
 
-## Gotchas
+## Getting set up
 
-### Not having `set_parallelism(1)` set when trying to implement a window assigner
+```bash
+`confluent local kafka start`
+```
 
-I was able to get `pyflink` working pretty well with reducefunctions. However I ran into an issue when trying to implement a sliding window assigner. The bug in my code was the following line missing:
+Once this command has run, the broker port will be printed in the console. The plaintext broker port will be used in `flink_table.py`.
 
-```python
-env.set_parallelism(1)
+## Finishing off
+
+Stop kafka:
+
+```bash
+confluent local kafka stop
 ```

@@ -9,6 +9,7 @@ from pyflink.common import Duration
 from pyflink.common import Time, WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
 from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.datastream.functions import ProcessAllWindowFunction
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSource
@@ -95,6 +96,7 @@ class AllWindowFunction(ProcessAllWindowFunction):
 def main() -> None:
     # Create a StreamExecutionEnvironment
     env = StreamExecutionEnvironment.get_execution_environment()
+    t_env = StreamTableEnvironment.create(env)
     env.set_parallelism(1)
     # Get current directory
     current_dir_list = __file__.split("/")[:-1]
@@ -103,7 +105,7 @@ def main() -> None:
     # Adding the jar to the flink streaming environment
     env.add_jars(f"file://{current_dir}/flink-sql-connector-kafka-3.1.0-1.18.jar")
 
-    properties = {"bootstrap.servers": "localhost:36399", "group.id": "process-github"}
+    properties = {"bootstrap.servers": "localhost:35955", "group.id": "process-github"}
 
     # Create a Kafka Source
     # NOTE: FlinkKafkaConsumer class is deprecated
@@ -127,31 +129,41 @@ def main() -> None:
         source_name="Github events topic",
     )
 
+    # Intepret the insert-only Datastream as table:
+    t = t_env.from_data_stream(data_stream)
+    # Register table as view:
+    t_env.create_temporary_view("InputTable", t)
+    # Query Table
+    res_table = t_env.sql_query("select * from InputTable limit 100")
+
+    # Intepret output table as datastream again
+    res_ds = t_env.to_data_stream(res_table)
+    res_ds.print()
     # Print line for readablity in the console
     print("start reading data from kafka")
 
     # The display login will be the key for the stream.
     # We eventually want to aggregate, so we will assign tuples with a value of 1.
     # This represents the number of events (at this point, one)
-    mapped_to_user = data_stream.map(
-        lambda x: (json.loads(x)["actor"]["display_login"], 1)
-    )
+    # mapped_to_user = data_stream.map(
+    #    lambda x: (json.loads(x)["actor"]["display_login"], 1)
+    # )
 
-    window_size_seconds = 10
-    print(
-        f"Printing top 5 Github event publishers in the last {window_size_seconds} seconds."
-    )
-    top_results = (
-        (
-            mapped_to_user.window_all(
-                TumblingEventTimeWindows.of(Time.seconds(window_size_seconds))
-            )
-        )
-        .trigger(EventTimeTrigger.create())
-        .allowed_lateness(0)
-        .process(AllWindowFunction())
-        .print()
-    )
+    # window_size_seconds = 10
+    # print(
+    #    f"Printing top 5 Github event publishers in the last {window_size_seconds} seconds."
+    # )
+    # top_results = (
+    #    (
+    #        mapped_to_user.window_all(
+    #            TumblingEventTimeWindows.of(Time.seconds(window_size_seconds))
+    #        )
+    #    )
+    #    .trigger(EventTimeTrigger.create())
+    #    .allowed_lateness(0)
+    #    .process(AllWindowFunction())
+    #    .print()
+    # )
 
     env.execute("Github events consumer")
 

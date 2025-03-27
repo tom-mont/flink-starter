@@ -24,7 +24,7 @@ def delivery_callback(err, msg):
 def main():
     producer = None
     try:
-        config = {"bootstrap.servers": "localhost:36399", "acks": "all"}
+        config = {"bootstrap.servers": "localhost:35955", "acks": "all"}
         topic = "github_firehose"
         producer = Producer(config)
         with (

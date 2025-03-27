@@ -61,31 +61,6 @@ class GithubEventTimestampAssigner(TimestampAssigner):
         return created_at
 
 
-src_ddl = """
-        CREATE TABLE github_firehose_source (
-            id VARCHAR
-            ,type VARCHAR
-        ) WITH (
-            'connector' = 'kafka',
-            'topic' = 'github_firehose',
-            'properties.bootstrap.servers' = 'localhost:35955',
-            'properties.group.id' = '123',
-            'scan.startup.mode' = 'earliest-offset',
-            'properties.auto.offset.reset' = 'earliest',
-            'format' = 'json'
-        )
-    """
-
-sink_ddl = """
-        CREATE TABLE github_firehose_sink (
-            id VARCHAR
-            ,type VARCHAR
-        ) WITH (
-            'connector' = 'print'
-        )
-    """
-
-
 class AllWindowFunction(ProcessAllWindowFunction):
     def process(
         self, context: ProcessAllWindowFunction.Context, elements: Iterable[tuple]
@@ -116,6 +91,35 @@ class AllWindowFunction(ProcessAllWindowFunction):
         }
 
         yield result
+
+
+src_ddl = """
+        CREATE TABLE github_firehose_source (
+            id VARCHAR
+            ,created_at VARCHAR 
+            ,type VARCHAR
+            ,repo ROW(`name` VARCHAR)
+        ) WITH (
+            'connector' = 'kafka',
+            'topic' = 'github_firehose',
+            'properties.bootstrap.servers' = 'localhost:35955',
+            'properties.group.id' = '123',
+            'scan.startup.mode' = 'earliest-offset',
+            'properties.auto.offset.reset' = 'earliest',
+            'format' = 'json'
+        )
+    """
+
+sink_ddl = """
+        CREATE TABLE github_firehose_sink (
+            id VARCHAR
+            ,created_at VARCHAR
+            ,type VARCHAR
+            ,repo ROW(`name` VARCHAR)
+        ) WITH (
+            'connector' = 'print'
+        )
+    """
 
 
 def main() -> None:
